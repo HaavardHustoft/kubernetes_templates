@@ -1,0 +1,110 @@
+#Service account for application
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  namespace: gluten
+  name: demo-app-service-account
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::136566222176:role/ec2-role-demo-app-qa
+    eks.amazonaws.com/sts-regional-endpoints: "true"
+automountServiceAccountToken: true
+
+# Deployment Config
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demo-deployment
+  namespace: gluten
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: demo-app
+  template:
+    metadata:
+      annotations:
+        linkerd.io/inject: enabled
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/actuator/health"
+        prometheus.io/port: "8080"
+        kubectl.kubernetes.io/default-container: demo-app
+      labels:
+        app: demo-app
+    spec:
+      serviceAccountName: demo-app-service-account
+      securityContext:
+        fsGroup: 1000
+        runAsUser: 1000
+      containers:
+        - name: demo-app
+          image: { { _image_ } }
+          imagePullPolicy: Always
+          env:
+            - name: "ENV"
+              value: "prod"
+          resources:
+            limits:
+              memory: "2Gi"
+              cpu: "1000m"
+            requests:
+              memory: "500Mi"
+              cpu: "500m"
+          ports:
+            - name: http
+              containerPort: 8080
+          livenessProbe:
+            httpGet:
+              path: "/actuator/health"
+              port: 8080
+            initialDelaySeconds: 90
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 5
+          readinessProbe:
+            httpGet:
+              path: "/actuator/health"
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+# Service Config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: demo-service
+  namespace: gluten
+spec:
+  selector:
+    app: demo-app
+  type: NodePort
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: demo-ingress
+  namespace: gluten
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/rewrite-target: /ws/$1
+spec:
+  rules:
+    - host: favrit.com
+      http:
+        paths:
+          - path: /ws/demo-app/(.*)
+            pathType: Prefix
+            backend:
+              service:
+                name: demo-service
+                port:
+                  number: 8080
