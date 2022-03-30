@@ -5,7 +5,7 @@ metadata:
   namespace: gluten
   name: demo-app-service-account
   annotations:
-    eks.amazonaws.com/role-arn: arn:aws:iam::136566222176:role/ec2-role-demo-app-qa
+    eks.amazonaws.com/role-arn: 
     eks.amazonaws.com/sts-regional-endpoints: "true"
 automountServiceAccountToken: true
 
