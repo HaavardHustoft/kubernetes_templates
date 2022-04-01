@@ -5,7 +5,7 @@ metadata:
   namespace: gluten
   name: demo-app-service-account
   annotations:
-    eks.amazonaws.com/role-arn: 
+    eks.amazonaws.com/role-arn:
     eks.amazonaws.com/sts-regional-endpoints: "true"
 automountServiceAccountToken: true
 
@@ -38,7 +38,7 @@ spec:
         runAsUser: 1000
       containers:
         - name: demo-app
-          image: { { _image_ } }
+          image: __IMAGE__
           imagePullPolicy: Always
           env:
             - name: "ENV"
